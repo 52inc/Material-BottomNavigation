@@ -140,8 +140,8 @@ public class BottomNavigationFixedItemView extends BottomNavigationItemViewAbstr
 
             int w = this.icon.getIntrinsicWidth();
             int height = this.icon.getIntrinsicHeight();
-            float ratio = (float)w / (float)height;
-            this.ratioIconWidth = (int)((float)this.iconSize * ratio);
+            float ratio = (float) w / (float) height;
+            this.ratioIconWidth = (int) ((float) this.iconSize * ratio);
 
             this.icon.setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
             this.icon.setBounds(0, 0, ratioIconWidth, iconSize);
