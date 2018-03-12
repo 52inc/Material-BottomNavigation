@@ -9,8 +9,7 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
 
-import proguard.annotation.Keep;
-import proguard.annotation.KeepClassMembers;
+import android.support.annotation.Keep;
 
 import static android.util.Log.DEBUG;
 import static android.util.Log.INFO;
@@ -21,7 +20,6 @@ import static it.sephiroth.android.library.bottomnavigation.MiscUtils.log;
  * Project: Material-BottomNavigation
  */
 @Keep
-@KeepClassMembers
 public class TabletBehavior extends VerticalScrollingBehavior<BottomNavigation> {
     private static final String TAG = TabletBehavior.class.getSimpleName();
     private int topInset;

@@ -3,19 +3,17 @@ package it.sephiroth.android.library.bottomnavigation;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.annotation.IdRes;
+import android.support.annotation.Keep;
 
 import java.util.HashSet;
 
 import it.sephiroth.android.library.bottonnavigation.R;
-import proguard.annotation.Keep;
-import proguard.annotation.KeepClassMembers;
 
 /**
  * Created by alessandro crugnola on 4/12/16.
  * BadgeProvider
  */
 @Keep
-@KeepClassMembers
 public class BadgeProvider {
     private final BottomNavigation navigation;
     private final HashSet<Integer> map = new HashSet<>();

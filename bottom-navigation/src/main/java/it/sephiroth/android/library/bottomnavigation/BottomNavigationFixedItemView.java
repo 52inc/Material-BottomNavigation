@@ -9,12 +9,12 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
+import android.support.annotation.Keep;
 import android.support.v4.view.ViewCompat;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
 
 import it.sephiroth.android.library.bottonnavigation.R;
-import proguard.annotation.Keep;
 
 /**
  * Created by alessandro on 4/3/16 at 10:55 PM.

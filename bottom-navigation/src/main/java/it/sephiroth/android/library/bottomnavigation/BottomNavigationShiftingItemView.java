@@ -197,13 +197,13 @@ public class BottomNavigationShiftingItemView extends BottomNavigationItemViewAb
     }
 
     @SuppressWarnings ("unused")
-    @proguard.annotation.Keep
+    @android.support.annotation.Keep
     public int getCenterY() {
         return centerY;
     }
 
     @SuppressWarnings ("unused")
-    @proguard.annotation.Keep
+    @android.support.annotation.Keep
     public void setCenterY(int value) {
         centerY = value;
         requestLayout();

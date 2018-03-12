@@ -11,7 +11,7 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import it.sephiroth.android.library.bottonnavigation.R;
-import proguard.annotation.Keep;
+import android.support.annotation.Keep;
 
 import static android.util.Log.INFO;
 import static it.sephiroth.android.library.bottomnavigation.MiscUtils.log;

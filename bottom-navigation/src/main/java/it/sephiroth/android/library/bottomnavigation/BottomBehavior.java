@@ -16,8 +16,7 @@ import android.view.ViewGroup.MarginLayoutParams;
 import android.view.animation.Interpolator;
 
 import it.sephiroth.android.library.bottonnavigation.R;
-import proguard.annotation.Keep;
-import proguard.annotation.KeepClassMembers;
+import android.support.annotation.Keep;
 
 import static android.util.Log.DEBUG;
 import static android.util.Log.INFO;
@@ -31,7 +30,6 @@ import static it.sephiroth.android.library.bottomnavigation.MiscUtils.log;
  * alessandro.crugnola@gmail.com
  */
 @Keep
-@KeepClassMembers
 public class BottomBehavior extends VerticalScrollingBehavior<BottomNavigation> {
     private static final String TAG = BottomBehavior.class.getSimpleName();
 
