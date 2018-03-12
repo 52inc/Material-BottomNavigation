@@ -46,6 +46,7 @@ public class BottomNavigationFixedItemView extends BottomNavigationItemViewAbstr
     private int centerX;
     private float textX;
     private float textY;
+    private int ratioIconWidth;
 
     public BottomNavigationFixedItemView(final BottomNavigation parent, boolean expanded, final MenuParser.Menu menu) {
         super(parent, expanded, menu);
@@ -137,15 +138,20 @@ public class BottomNavigationFixedItemView extends BottomNavigationItemViewAbstr
             final int color =
                 isExpanded() ? (isEnabled() ? colorActive : colorDisabled) : (isEnabled() ? colorInactive : colorDisabled);
 
+            int w = this.icon.getIntrinsicWidth();
+            int height = this.icon.getIntrinsicHeight();
+            float ratio = (float)w / (float)height;
+            this.ratioIconWidth = (int)((float)this.iconSize * ratio);
+
             this.icon.setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
-            this.icon.setBounds(0, 0, iconSize, iconSize);
+            this.icon.setBounds(0, 0, ratioIconWidth, iconSize);
             this.icon.setAlpha(Color.alpha(color));
         }
 
         if (changed) {
             int w = right - left;
-            centerX = (w - iconSize) / 2;
-            icon.setBounds(centerX, centerY, centerX + iconSize, centerY + iconSize);
+            centerX = (w - ratioIconWidth) / 2;
+            icon.setBounds(centerX, centerY, centerX + ratioIconWidth, centerY + iconSize);
         }
 
         if (textDirty || changed) {
