@@ -1,15 +1,20 @@
 package it.sephiroth.android.library.bottomnavigation;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import it.sephiroth.android.library.bottonnavigation.R;
+
+import static android.util.Log.INFO;
+import static it.sephiroth.android.library.bottomnavigation.MiscUtils.log;
 
 /**
  * Created by crugnola on 4/4/16.
@@ -58,9 +63,6 @@ public class FixedLayout extends ViewGroup implements ItemsLayoutContainer {
         int width = (r - l);
         int left = (width - totalChildrenSize) / 2;
 
-        Log.v(TAG, "width: " + width);
-        Log.v(TAG, "left: " + left);
-
         for (int i = 0; i < getChildCount(); i++) {
             final View child = getChildAt(i);
             final LayoutParams params = child.getLayoutParams();
@@ -81,13 +83,12 @@ public class FixedLayout extends ViewGroup implements ItemsLayoutContainer {
     }
 
     private void setChildFrame(View child, int left, int top, int width, int height) {
-        Log.v(TAG, "setChildFrame: " + left + ", " + top + ", " + width + ", " + height);
         child.layout(left, top, left + width, top + height);
     }
 
     @Override
     public void setSelectedIndex(final int index, final boolean animate) {
-        Log.i(TAG, "setSelectedIndex: " + index);
+        MiscUtils.log(TAG, Log.INFO, "setSelectedIndex: " + index);
 
         if (selectedIndex == index) {
             return;
@@ -103,8 +104,23 @@ public class FixedLayout extends ViewGroup implements ItemsLayoutContainer {
         final BottomNavigationFixedItemView current = (BottomNavigationFixedItemView) getChildAt(oldSelectedIndex);
         final BottomNavigationFixedItemView child = (BottomNavigationFixedItemView) getChildAt(index);
 
-        current.setExpanded(false, 0, animate);
-        child.setExpanded(true, 0, animate);
+        if (null != current) {
+            current.setExpanded(false, 0, animate);
+        }
+        if (null != child) {
+            child.setExpanded(true, 0, animate);
+        }
+    }
+
+    @Override
+    public void setItemEnabled(final int index, final boolean enabled) {
+        log(TAG, INFO, "setItemEnabled(%d, %b)", index, enabled);
+        final BottomNavigationItemViewAbstract child = (BottomNavigationItemViewAbstract) getChildAt(index);
+        if (null != child) {
+            child.setEnabled(enabled);
+            child.postInvalidate();
+            requestLayout();
+        }
     }
 
     @Override
@@ -114,7 +130,7 @@ public class FixedLayout extends ViewGroup implements ItemsLayoutContainer {
 
     @Override
     public void populate(@NonNull final MenuParser.Menu menu) {
-        Log.i(TAG, "populate: " + menu);
+        MiscUtils.log(TAG, Log.INFO, "populate: " + menu);
 
         if (hasFrame) {
             populateInternal(menu);
@@ -129,32 +145,22 @@ public class FixedLayout extends ViewGroup implements ItemsLayoutContainer {
     }
 
     private void populateInternal(@NonNull final MenuParser.Menu menu) {
-        Log.d(TAG, "populateInternal");
+        MiscUtils.log(TAG, Log.DEBUG, "populateInternal");
 
         final BottomNavigation parent = (BottomNavigation) getParent();
         final float density = getResources().getDisplayMetrics().density;
         final int screenWidth = parent.getWidth();
 
-        Log.v(TAG, "density: " + density);
-        Log.v(TAG, "screenWidth: " + screenWidth);
-        Log.v(TAG, "screenWidth(dp): " + (screenWidth / density));
-
         int proposedWidth = Math.min(Math.max(screenWidth / menu.getItemsCount(), minActiveItemWidth), maxActiveItemWidth);
-        Log.v(TAG, "proposedWidth: " + proposedWidth);
-        Log.v(TAG, "proposedWidth(dp): " + proposedWidth / density);
 
         if (proposedWidth * menu.getItemsCount() > screenWidth) {
             proposedWidth = screenWidth / menu.getItemsCount();
         }
 
-        Log.v(TAG, "active size: " + maxActiveItemWidth + ", " + minActiveItemWidth);
-        Log.v(TAG, "active size (dp): " + maxActiveItemWidth / density + ", " + minActiveItemWidth / density);
-
         this.itemFinalWidth = proposedWidth;
 
         for (int i = 0; i < menu.getItemsCount(); i++) {
             final BottomNavigationItem item = menu.getItemAt(i);
-            Log.d(TAG, "item: " + item);
 
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(proposedWidth, getHeight());
 
@@ -165,6 +171,23 @@ public class FixedLayout extends ViewGroup implements ItemsLayoutContainer {
             view.setClickable(true);
             view.setTypeface(parent.typeface);
             final int finalI = i;
+            view.setOnTouchListener(new OnTouchListener() {
+                @Override
+                @SuppressLint ("ClickableViewAccessibility")
+                public boolean onTouch(final View v, final MotionEvent event) {
+                    final int action = event.getActionMasked();
+                    if (action == MotionEvent.ACTION_DOWN) {
+                        if (null != listener) {
+                            listener.onItemPressed(FixedLayout.this, v, true);
+                        }
+                    } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                        if (null != listener) {
+                            listener.onItemPressed(FixedLayout.this, v, false);
+                        }
+                    }
+                    return false;
+                }
+            });
             view.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(final View v) {

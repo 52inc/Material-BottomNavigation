@@ -16,10 +16,6 @@ import android.view.animation.Interpolator;
 import it.sephiroth.android.library.bottonnavigation.R;
 import proguard.annotation.Keep;
 
-import static android.util.Log.DEBUG;
-import static android.util.Log.INFO;
-import static it.sephiroth.android.library.bottomnavigation.MiscUtils.log;
-
 /**
  * Created by alessandro on 4/3/16 at 10:55 PM.
  * Project: MaterialBottomNavigation
@@ -34,6 +30,7 @@ public class BottomNavigationFixedItemView extends BottomNavigationItemViewAbstr
     private long animationDuration;
     private final int colorActive;
     private final int colorInactive;
+    private final int colorDisabled;
 
     private final int paddingTopActive;
     private final int paddingTopInactive;
@@ -64,11 +61,10 @@ public class BottomNavigationFixedItemView extends BottomNavigationItemViewAbstr
         this.animationDuration = menu.getItemAnimationDuration();
         this.colorActive = menu.getColorActive();
         this.colorInactive = menu.getColorInactive();
+        this.colorDisabled = menu.getColorDisabled();
         this.centerY = paddingTopActive;
         this.canvasTextScale = expanded ? TEXT_SCALE_ACTIVE : 1f;
         this.iconTranslation = expanded ? 0 : (paddingTopInactive - paddingTopActive);
-
-        log(TAG, DEBUG, "colors: %x, %x", colorInactive, colorActive);
 
         this.textPaint.setColor(Color.WHITE);
         this.textPaint.setHinting(Paint.HINTING_ON);
@@ -76,6 +72,17 @@ public class BottomNavigationFixedItemView extends BottomNavigationItemViewAbstr
         this.textPaint.setSubpixelText(true);
         this.textPaint.setTextSize(textSizeInactive);
         this.textPaint.setColor(expanded ? colorActive : colorInactive);
+    }
+
+    @Override
+    public void setEnabled(final boolean enabled) {
+        super.setEnabled(enabled);
+        this.textPaint.setColor(isExpanded() ? (enabled ? colorActive : colorDisabled) : (enabled ? colorInactive : colorDisabled));
+
+        if (null != icon) {
+            updateLayoutOnAnimation(1, isExpanded());
+        }
+        requestLayout();
     }
 
     @Override
@@ -109,36 +116,36 @@ public class BottomNavigationFixedItemView extends BottomNavigationItemViewAbstr
     }
 
     private void updateLayoutOnAnimation(final float fraction, final boolean expanded) {
-        if (expanded) {
-            final int color = (Integer) evaluator.evaluate(fraction, colorInactive, colorActive);
-            icon.setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
-            textPaint.setColor(color);
-            icon.setAlpha(Color.alpha(color));
-        } else {
-            final int color = (Integer) evaluator.evaluate(fraction, colorActive, colorInactive);
-            icon.setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
-            textPaint.setColor(color);
-            icon.setAlpha(Color.alpha(color));
-        }
+        final boolean enabled = isEnabled();
+        final int dstColor = enabled ? (expanded ? colorActive : colorInactive) : colorDisabled;
+        final int srcColor = enabled ? (expanded ? colorInactive : colorActive) : colorDisabled;
+        final int color = (Integer) evaluator.evaluate(fraction, srcColor, dstColor);
+
+        icon.setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
+        icon.setAlpha(Color.alpha(color));
+        textPaint.setColor(color);
+        ViewCompat.postInvalidateOnAnimation(this);
     }
 
     @Override
     protected void onLayout(final boolean changed, final int left, final int top, final int right, final int bottom) {
-        log(TAG, INFO, "onLayout(%b)", changed);
-
         super.onLayout(changed, left, top, right, bottom);
 
         if (null == this.icon) {
-            this.icon = getItem().getIcon(getContext());
-            this.icon.setColorFilter(isExpanded() ? colorActive : colorInactive, PorterDuff.Mode.SRC_ATOP);
+            this.icon = getItem().getIcon(getContext()).mutate();
+
+            final int color =
+                isExpanded() ? (isEnabled() ? colorActive : colorDisabled) : (isEnabled() ? colorInactive : colorDisabled);
+
+            this.icon.setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
             this.icon.setBounds(0, 0, iconSize, iconSize);
+            this.icon.setAlpha(Color.alpha(color));
         }
 
         if (changed) {
             int w = right - left;
             centerX = (w - iconSize) / 2;
             icon.setBounds(centerX, centerY, centerX + iconSize, centerY + iconSize);
-
         }
 
         if (textDirty || changed) {
@@ -148,8 +155,6 @@ public class BottomNavigationFixedItemView extends BottomNavigationItemViewAbstr
     }
 
     private void measureText() {
-        log(TAG, INFO, "measureText");
-
         final int width = getWidth();
         final int height = getHeight();
 

@@ -1,8 +1,10 @@
 package it.sephiroth.android.library.bottomnavigation;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -10,6 +12,9 @@ import android.widget.Toast;
 
 import it.sephiroth.android.library.bottonnavigation.R;
 import proguard.annotation.Keep;
+
+import static android.util.Log.INFO;
+import static it.sephiroth.android.library.bottomnavigation.MiscUtils.log;
 
 /**
  * Created by crugnola on 4/4/16.
@@ -53,8 +58,14 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
             return;
         }
 
+        log(TAG, INFO, "onLayout(change:%b, selectedIndex:%d)", changed, selectedIndex);
+
         if (totalChildrenSize == 0) {
-            totalChildrenSize = minSize * (getChildCount() - 1) + maxSize;
+            if (selectedIndex < 0) {
+                totalChildrenSize = minSize * getChildCount();
+            } else {
+                totalChildrenSize = minSize * (getChildCount() - 1) + maxSize;
+            }
         }
 
         int width = (r - l);
@@ -70,7 +81,7 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
 
     @Override
     protected void onSizeChanged(final int w, final int h, final int oldw, final int oldh) {
-        Log.i(TAG, "onSizeChanged(" + w + ", " + h + ")");
+        log(TAG, INFO, "onSizeChanged(" + w + ", " + h + ")");
         super.onSizeChanged(w, h, oldw, oldh);
         hasFrame = true;
 
@@ -86,7 +97,6 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
     }
 
     private void setChildFrame(View child, int left, int top, int width, int height) {
-        // Log.v(TAG, "setChildFrame: " + left + ", " + top + ", " + width + ", " + height);
         child.layout(left, top, left + width, top + height);
     }
 
@@ -97,7 +107,7 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
 
     @Override
     public void setSelectedIndex(final int index, final boolean animate) {
-        Log.i(TAG, "setSelectedIndex: " + index);
+        log(TAG, INFO, "setSelectedIndex: " + index);
 
         if (selectedIndex == index) {
             return;
@@ -106,7 +116,7 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
         int oldSelectedIndex = this.selectedIndex;
         this.selectedIndex = index;
 
-        MiscUtils.log(TAG, Log.DEBUG, "change selection: %d --> %d", oldSelectedIndex, selectedIndex);
+        log(TAG, Log.DEBUG, "change selection: %d --> %d", oldSelectedIndex, selectedIndex);
 
         if (!hasFrame || getChildCount() == 0) {
             return;
@@ -115,8 +125,31 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
         final BottomNavigationItemViewAbstract current = (BottomNavigationItemViewAbstract) getChildAt(oldSelectedIndex);
         final BottomNavigationItemViewAbstract child = (BottomNavigationItemViewAbstract) getChildAt(index);
 
-        current.setExpanded(false, minSize, animate);
-        child.setExpanded(true, maxSize, animate);
+        final boolean willAnimate = null != current && null != child;
+
+        if (!willAnimate) {
+            totalChildrenSize = 0;
+            requestLayout();
+        }
+
+        if (null != current) {
+            current.setExpanded(false, minSize, willAnimate);
+        }
+
+        if (null != child) {
+            child.setExpanded(true, maxSize, willAnimate);
+        }
+    }
+
+    @Override
+    public void setItemEnabled(final int index, final boolean enabled) {
+        log(TAG, INFO, "setItemEnabled(%d, %b)", index, enabled);
+        final BottomNavigationItemViewAbstract child = (BottomNavigationItemViewAbstract) getChildAt(index);
+        if (null != child) {
+            child.setEnabled(enabled);
+            child.postInvalidate();
+            requestLayout();
+        }
     }
 
     @Override
@@ -128,7 +161,7 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
 
     @Override
     public void populate(@NonNull final MenuParser.Menu menu) {
-        Log.i(TAG, "populate: " + menu);
+        log(TAG, INFO, "populate: " + menu);
 
         if (hasFrame) {
             populateInternal(menu);
@@ -138,33 +171,36 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
     }
 
     private void populateInternal(@NonNull final MenuParser.Menu menu) {
-        Log.d(TAG, "populateInternal");
+        log(TAG, Log.DEBUG, "populateInternal");
 
         final BottomNavigation parent = (BottomNavigation) getParent();
         final float density = getResources().getDisplayMetrics().density;
         final int screenWidth = parent.getWidth();
 
-        Log.v(TAG, "density: " + density);
-        Log.v(TAG, "screenWidth(dp): " + (screenWidth / density));
+        log(TAG, Log.VERBOSE, "density: " + density);
+        log(TAG, Log.VERBOSE, "screenWidth(dp): " + (screenWidth / density));
 
         int itemWidthMin;
         int itemWidthMax;
 
         final int totalWidth = maxInactiveItemWidth * (menu.getItemsCount() - 1) + maxActiveItemWidth;
-        Log.v(TAG, "totalWidth(dp): " + totalWidth / density);
+        log(TAG, Log.VERBOSE, "totalWidth(dp): " + totalWidth / density);
 
         if (totalWidth > screenWidth) {
             float ratio = (float) screenWidth / totalWidth;
             ratio = (float) ((double) Math.round(ratio * ROUND_DECIMALS) / ROUND_DECIMALS) + RATIO_MIN_INCREASE;
-            Log.v(TAG, "ratio: " + ratio);
+            log(TAG, Log.VERBOSE, "ratio: " + ratio);
 
             itemWidthMin = (int) Math.max(maxInactiveItemWidth * ratio, minInactiveItemWidth);
             itemWidthMax = (int) (maxActiveItemWidth * ratio);
 
-            Log.d(TAG, "computing sizes...");
-            Log.v(TAG, "itemWidthMin(dp): " + itemWidthMin / density);
-            Log.v(TAG, "itemWidthMax(dp): " + itemWidthMax / density);
-            Log.v(TAG, "total items size(dp): " + (itemWidthMin * (menu.getItemsCount() - 1) + itemWidthMax) / density);
+            if (BottomNavigation.DEBUG) {
+                log(TAG, Log.DEBUG, "computing sizes...");
+                log(TAG, Log.VERBOSE, "itemWidthMin(dp): " + itemWidthMin / density);
+                log(TAG, Log.VERBOSE, "itemWidthMax(dp): " + itemWidthMax / density);
+                log(TAG, Log.VERBOSE, "total items size(dp): "
+                    + (itemWidthMin * (menu.getItemsCount() - 1) + itemWidthMax) / density);
+            }
 
             if (itemWidthMin * (menu.getItemsCount() - 1) + itemWidthMax > screenWidth) {
                 itemWidthMax = screenWidth - (itemWidthMin * (menu.getItemsCount() - 1)); // minActiveItemWidth?
@@ -178,16 +214,20 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
             itemWidthMin = maxInactiveItemWidth;
         }
 
-        Log.v(TAG, "active size (dp): " + maxActiveItemWidth / density + ", " + minActiveItemWidth / density);
-        Log.v(TAG, "inactive size (dp): " + maxInactiveItemWidth / density + ", " + minInactiveItemWidth / density);
-
-        Log.v(TAG, "itemWidth(dp): " + (itemWidthMin / density) + ", " + (itemWidthMax / density));
+        if (BottomNavigation.DEBUG) {
+            log(TAG, Log.VERBOSE, "active size (dp): "
+                + maxActiveItemWidth / density + ", " + minActiveItemWidth / density);
+            log(TAG, Log.VERBOSE, "inactive size (dp): "
+                + maxInactiveItemWidth / density + ", " + minInactiveItemWidth / density);
+            log(TAG, Log.VERBOSE, "itemWidth(dp): "
+                + (itemWidthMin / density) + ", " + (itemWidthMax / density));
+        }
 
         setTotalSize(itemWidthMin, itemWidthMax);
 
         for (int i = 0; i < menu.getItemsCount(); i++) {
             final BottomNavigationItem item = menu.getItemAt(i);
-            Log.d(TAG, "item: " + item);
+            log(TAG, Log.DEBUG, "item: " + item);
 
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(itemWidthMin, getHeight());
 
@@ -202,6 +242,24 @@ public class ShiftingLayout extends ViewGroup implements ItemsLayoutContainer {
             view.setClickable(true);
             view.setTypeface(parent.typeface);
             final int finalI = i;
+
+            view.setOnTouchListener(new OnTouchListener() {
+                @Override
+                @SuppressLint ("ClickableViewAccessibility")
+                public boolean onTouch(final View v, final MotionEvent event) {
+                    final int action = event.getActionMasked();
+                    if (action == MotionEvent.ACTION_DOWN) {
+                        if (null != listener) {
+                            listener.onItemPressed(ShiftingLayout.this, v, true);
+                        }
+                    } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                        if (null != listener) {
+                            listener.onItemPressed(ShiftingLayout.this, v, false);
+                        }
+                    }
+                    return false;
+                }
+            });
             view.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(final View v) {

@@ -31,13 +31,15 @@ public class BottomNavigationShiftingItemView extends BottomNavigationItemViewAb
     private final int textSize;
 
     private int centerY;
-    private final float maxAlpha;
-    private final float minAlpha;
+    private final float alphaActive;
+    private final float alphaInactive;
+    private final float alphaDisabled;
     private final Interpolator interpolator = new DecelerateInterpolator();
     private float textWidth;
     private long animationDuration;
     private final int colorActive;
     private final int colorInactive;
+    private final int colorDisabled;
     private float textX;
     private int textY;
 
@@ -53,8 +55,10 @@ public class BottomNavigationShiftingItemView extends BottomNavigationItemViewAb
         this.animationDuration = menu.getItemAnimationDuration();
         this.colorActive = menu.getColorActive();
         this.colorInactive = menu.getColorInactive();
-        this.minAlpha = Color.alpha(this.colorInactive) / ALPHA_MAX;
-        this.maxAlpha = Math.max((float) Color.alpha(colorActive) / ALPHA_MAX, minAlpha);
+        this.colorDisabled = menu.getColorDisabled();
+        this.alphaInactive = Color.alpha(this.colorInactive) / ALPHA_MAX;
+        this.alphaDisabled = Color.alpha(this.colorDisabled) / ALPHA_MAX;
+        this.alphaActive = Math.max((float) Color.alpha(colorActive) / ALPHA_MAX, alphaInactive);
 
         this.centerY = expanded ? paddingTop : paddingBottomInactive;
         this.textPaint.setHinting(Paint.HINTING_ON);
@@ -68,15 +72,28 @@ public class BottomNavigationShiftingItemView extends BottomNavigationItemViewAb
         }
 
         if (BottomNavigation.DEBUG) {
-            log(TAG, VERBOSE, "colors: %x, %x", colorInactive, colorActive);
-            log(TAG, VERBOSE, "alphas: %g, %g", minAlpha, maxAlpha);
+            log(TAG, VERBOSE, "colors: %x, %x, %x", colorDisabled, colorInactive, colorActive);
+            log(TAG, VERBOSE, "alphas: %g, %g, %g", alphaDisabled, alphaInactive, alphaActive);
+        }
+    }
+
+    @Override
+    public void setEnabled(final boolean enabled) {
+        super.setEnabled(enabled);
+
+        textPaint.setAlpha(
+            (int) ((isExpanded() ? (enabled ? alphaActive : alphaDisabled) : 0) * ALPHA_MAX));
+
+        if (null != icon) {
+            updateLayoutOnAnimation(getLayoutParams().width, 1, isExpanded());
         }
 
+        requestLayout();
     }
 
     @Override
     protected void onStatusChanged(final boolean expanded, final int size, final boolean animate) {
-        log(TAG, INFO, "onStatusChanged(%b, %d)", expanded, size);
+        log(TAG, INFO, "[%s] onStatusChanged(%b, %d)", getItem().getTitle(), expanded, size);
 
         if (!animate) {
             updateLayoutOnAnimation(size, 1, expanded);
@@ -107,23 +124,28 @@ public class BottomNavigationShiftingItemView extends BottomNavigationItemViewAb
 
     private void updateLayoutOnAnimation(final int size, final float fraction, final boolean expanded) {
         getLayoutParams().width = size;
+        final int color;
+        final boolean enabled = isEnabled();
 
+        final int srcColor = enabled ? (expanded ? colorInactive : colorActive) : colorDisabled;
+        final int dstColor = enabled ? (expanded ? colorActive : colorInactive) : colorDisabled;
+        final float srcAlpha = enabled ? alphaInactive : alphaDisabled;
+        final float dstAlpha = enabled ? alphaActive : alphaDisabled;
         if (expanded) {
-            final int color = (Integer) evaluator.evaluate(fraction, colorInactive, colorActive);
-            icon.setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
-            icon.setAlpha((int) ((minAlpha + (fraction * (maxAlpha - minAlpha))) * ALPHA_MAX));
-            textPaint.setAlpha((int) (((fraction * (maxAlpha))) * ALPHA_MAX));
+            color = (Integer) evaluator.evaluate(fraction, srcColor, dstColor);
+            icon.setAlpha((int) ((srcAlpha + (fraction * (dstAlpha - srcAlpha))) * ALPHA_MAX));
+            textPaint.setAlpha((int) (((fraction * (dstAlpha))) * ALPHA_MAX));
         } else {
-            final int color = (Integer) evaluator.evaluate(fraction, colorActive, colorInactive);
+            color = (Integer) evaluator.evaluate(fraction, srcColor, dstColor);
             final float alpha = 1.0F - fraction;
-            icon.setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
-            icon.setAlpha((int) ((minAlpha + (alpha * (maxAlpha - minAlpha))) * ALPHA_MAX));
-            textPaint.setAlpha((int) (((alpha * (maxAlpha))) * ALPHA_MAX));
+            icon.setAlpha((int) ((srcAlpha + (alpha * (dstAlpha - srcAlpha))) * ALPHA_MAX));
+            textPaint.setAlpha((int) (((alpha * (dstAlpha))) * ALPHA_MAX));
         }
+
+        icon.setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
     }
 
     private void measureText() {
-        log(TAG, INFO, "measureText");
         this.textWidth = textPaint.measureText(getItem().getTitle());
     }
 
@@ -132,10 +154,18 @@ public class BottomNavigationShiftingItemView extends BottomNavigationItemViewAb
         super.onLayout(changed, left, top, right, bottom);
 
         if (null == this.icon) {
-            this.icon = getItem().getIcon(getContext());
+            this.icon = getItem().getIcon(getContext()).mutate();
             icon.setBounds(0, 0, iconSize, iconSize);
-            icon.setColorFilter(isExpanded() ? colorActive : colorInactive, PorterDuff.Mode.SRC_ATOP);
-            icon.setAlpha((int) (isExpanded() ? maxAlpha * ALPHA_MAX : minAlpha * ALPHA_MAX));
+            icon.setColorFilter(
+                isExpanded() ? (isEnabled() ? colorActive : colorDisabled) : (isEnabled() ? colorInactive : colorDisabled),
+                PorterDuff
+                    .Mode
+                    .SRC_ATOP
+            );
+
+            icon.setAlpha(
+                (int) (isExpanded() ? (isEnabled() ? alphaActive : alphaDisabled) * ALPHA_MAX
+                    : (isEnabled() ? alphaInactive : alphaDisabled) * ALPHA_MAX));
         }
 
         if (textDirty) {
